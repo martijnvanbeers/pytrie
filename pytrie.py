@@ -466,6 +466,30 @@ class SortedStringTrie(SortedTrie, StringTrie):
     """
 
 
+class MultiTrie(Trie):
+    def __getitem__(self, key):
+        node = self._find(key)
+        if node is None or node.value is NULL:
+            raise KeyError
+        return node.value
+
+    def __setitem__(self, key, value):
+        node = self._root
+        factory = self.NodeFactory
+        for part in key:
+            next_node = node.children.get(part)
+            if next_node is None:
+                node = node.children.setdefault(part, factory())
+            else:
+                node = next_node
+        if node.value is not NULL:
+            node.value.append(value)
+        else:
+            node.value = [value]
+
+class StringMultiTrie(StringTrie, MultiTrie):
+    pass
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
