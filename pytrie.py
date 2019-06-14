@@ -48,6 +48,7 @@ from copy import copy
 from collections import MutableMapping
 
 import sortedcontainers
+import itertools
 
 # Python 3 interoperability
 PY3 = sys.version_info[0] == 3
@@ -329,6 +330,47 @@ class Trie(MutableMapping):
                 root = self.NodeFactory()
         return generator(root)
 
+    def fuzzyitems(self, prefix=None, max_distance=2):
+        """Return an iterator over this trie's items (``(key,value)`` tuples).
+
+        :param prefix: If not None, yield only the items associated with keys
+            prefixed by ``prefix``.
+        """
+
+        # pylint: disable=dangerous-default-value
+        def generator(node, key_factory=self.KeyFactory, steps=[], parts=None,
+                      null=NULL, fuzz=0):
+            #print("generator:", node, parts, node, fuzz)
+            if node.value is not null:
+                #print("result", parts, node.value)
+                fuzz_list = [a != b for a, b in itertools.zip_longest(parts, steps[:len(parts)])]
+                #print("FUZZ", steps[:len(parts)], parts, fuzz_list)
+                step_fuzz = sum(fuzz_list)
+                if step_fuzz <= max_distance:
+                    yield (key_factory(steps), node.value, step_fuzz, len(parts))
+            #print("after 1st yield")
+            for part, child in iteritems(node.children):
+                step_parts = steps + [part]
+                fuzz_list = [a != b for a, b in zip(parts, step_parts)]
+                #print("FUZZ", step_parts, parts, fuzz_list)
+                step_fuzz = sum(fuzz_list)
+                if step_fuzz > max_distance:
+                    continue
+                #print("descend:", part, child, step_fuzz)
+                for subresult in generator(child, steps=step_parts, parts=parts, fuzz=step_fuzz):
+                    #print("subresult", subresult, fuzz)
+                    yield subresult
+                #del parts[-1]
+
+        root = self._root
+        if prefix is not None:
+            pfx_list = [ch for ch in prefix]
+        else:
+            pfx_list = []
+
+        return generator(root, parts=pfx_list)
+
+     # pylint: enable=arguments-differ
     def iteritems(self, prefix=None):
         """Return an iterator over this trie's items (``(key,value)`` tuples).
 
